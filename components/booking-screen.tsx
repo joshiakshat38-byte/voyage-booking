@@ -42,7 +42,7 @@ export default function HomeScreen() {
 
   return <ScreenContainer containerClassName="bg-[#F7F9FC]" className="px-5">
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}><View><Text style={styles.eyebrow}>VOYAGE INDIA-WIDE</Text><Text style={styles.title}>Where will you go?</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>AR</Text></View></View>
+      <View style={styles.header}><View><Text style={styles.eyebrow}>GHUMO INDIA · INDIA-WIDE</Text><Text style={styles.title}>Where will you go?</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>AR</Text></View></View>
       <View style={styles.hero}><View style={{ flex: 1 }}><Text style={styles.heroKicker}>ONE SEARCH. EVERY DISTRICT.</Text><Text style={styles.heroTitle}>Travel across India{`\n`}your way.</Text><Text style={styles.heroMeta}>Find the best train, bus or flight for your exact route.</Text></View><View style={styles.heroArt}><Ionicons name="navigate" size={27} color={C.coral} /><View style={styles.dashed} /><Ionicons name="airplane" size={23} color={C.white} /></View></View>
 
       <View style={styles.step}><Text style={styles.stepNo}>01</Text><View><Text style={styles.stepTitle}>Pick your route</Text><Text style={styles.stepSub}>Search any city or district in India</Text></View></View>
