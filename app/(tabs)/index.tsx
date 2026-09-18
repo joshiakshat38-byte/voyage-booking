@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import { useState } from "react";
 import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import BookingScreen from "@/components/booking-screen";
-import PlanMyTrip from "@/components/plan-my-trip";
+import PlanMyTrip from "@/components/ai-trip-planner";
 
 const C = { navy: "#0D2340", coral: "#F06C4E", ink: "#172B4D", muted: "#718096", line: "#E5EAF0", soft: "#FFF0EA", pale: "#F5F8FB", white: "#FFFFFF", green: "#1F9D74", danger: "#D54A48" };
 type AuthScreen = "login" | "signup" | "forgot" | "otp" | "reset";
