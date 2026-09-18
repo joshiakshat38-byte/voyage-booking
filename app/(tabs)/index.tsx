@@ -1,48 +1,104 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useMemo, useState } from "react";
+import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { getModeLabel, getSummaryFare, toggleSeatSelection } from "@/lib/booking";
 
-/**
- * Home Screen - NativeWind Example
- *
- * This template uses NativeWind (Tailwind CSS for React Native).
- * You can use familiar Tailwind classes directly in className props.
- *
- * Key patterns:
- * - Use `className` instead of `style` for most styling
- * - Theme colors: use tokens directly (bg-background, text-foreground, bg-primary, etc.); no dark: prefix needed
- * - Responsive: standard Tailwind breakpoints work on web
- * - Custom colors defined in tailwind.config.js
- */
+type Mode = "train" | "bus" | "air";
+type Field = "from" | "to" | null;
+
+const C = { navy: "#0D2340", coral: "#F06C4E", ink: "#172B4D", muted: "#718096", line: "#E5EAF0", soft: "#FFF0EA", pale: "#F5F8FB", white: "#FFFFFF", green: "#1F9D74" };
+const destinations = [
+  ["New Delhi", "DEL", "India · Capital city"],
+  ["Jaipur", "JAI", "India · Pink City"],
+  ["Mumbai", "BOM", "India · City of dreams"],
+  ["Bengaluru", "BLR", "India · Garden city"],
+  ["Goa", "GOI", "India · Beach escape"],
+] as const;
+const dates = [["Today", "18 Sep", "Fri"], ["Tomorrow", "19 Sep", "Sat"], ["Sun", "20 Sep", "Sun"], ["Mon", "21 Sep", "Mon"]] as const;
+const trainClasses = [
+  ["GN", "General", "Unreserved", "₹240"], ["SL", "Sleeper", "Sleeper class", "₹445"], ["3A", "AC 3 Tier", "Comfortable AC", "₹1,180"], ["2A", "AC 2 Tier", "Extra privacy", "₹1,720"], ["1A", "AC First Class", "Private cabin", "₹2,950"], ["CC", "Chair Car", "Day travel", "₹865"], ["EC", "Executive Chair", "Premium seating", "₹1,480"],
+] as const;
+const airClasses = [["economy", "Economy", "₹5,840"], ["premium", "Premium Economy", "₹8,420"], ["business", "Business", "₹18,950"], ["first", "First Class", "₹32,500"]] as const;
+const busTypes = ["AC", "Non-AC", "Sleeper", "Seater", "Semi-Sleeper"];
+const seats = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4", "D1", "D2", "D3", "D4"];
+const occupied = ["A2", "B3", "C1", "D4"];
+
+function haptic() { if (Platform.OS !== "web") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }
+
 export default function HomeScreen() {
+  const [from, setFrom] = useState("New Delhi");
+  const [to, setTo] = useState("Jaipur");
+  const [field, setField] = useState<Field>(null);
+  const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<Mode>("train");
+  const [date, setDate] = useState("18 Sep");
+  const [passengers, setPassengers] = useState(1);
+  const [trainClass, setTrainClass] = useState("3A");
+  const [busType, setBusType] = useState("AC");
+  const [seatPref, setSeatPref] = useState("Window");
+  const [selectedSeats, setSelectedSeats] = useState(["A3"]);
+  const [tripType, setTripType] = useState("One Way");
+  const [airClass, setAirClass] = useState("economy");
+  const [ready, setReady] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? destinations.filter((d) => d[0].toLowerCase().includes(q) || d[1].toLowerCase().includes(q)) : destinations;
+  }, [query]);
+
+  const selectDestination = (city: string) => {
+    if (field === "from") setFrom(city); else setTo(city);
+    setField(null); setQuery(""); Keyboard.dismiss(); haptic();
+  };
+  const swap = () => { setFrom(to); setTo(from); haptic(); };
+  const changeMode = (next: Mode) => { setMode(next); setReady(false); haptic(); };
+  const toggleSeat = (seat: string) => {
+    setSelectedSeats((current) => toggleSeatSelection(current, seat, occupied)); haptic();
+  };
+  const modeLabel = getModeLabel(mode);
+  const detailLabel = mode === "train" ? trainClasses.find((c) => c[0] === trainClass)?.[1] : mode === "bus" ? `${busType} · ${seatPref}` : airClasses.find((c) => c[0] === airClass)?.[1];
+  const fare = getSummaryFare(mode, mode === "train" ? trainClass : airClass);
+
   return (
-    <ScreenContainer className="p-6">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 gap-8">
-          {/* Hero Section */}
-          <View className="items-center gap-2">
-            <Text className="text-4xl font-bold text-foreground">Welcome</Text>
-            <Text className="text-base text-muted text-center">
-              Edit app/(tabs)/index.tsx to get started
-            </Text>
-          </View>
-
-          {/* Example Card */}
-          <View className="w-full max-w-sm self-center bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <Text className="text-lg font-semibold text-foreground mb-2">NativeWind Ready</Text>
-            <Text className="text-sm text-muted leading-relaxed">
-              Use Tailwind CSS classes directly in your React Native components.
-            </Text>
-          </View>
-
-          {/* Example Button */}
-          <View className="items-center">
-            <TouchableOpacity className="bg-primary px-6 py-3 rounded-full active:opacity-80">
-              <Text className="text-background font-semibold">Get Started</Text>
-            </TouchableOpacity>
-          </View>
+    <ScreenContainer containerClassName="bg-[#F7F9FC]" className="px-5">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
+          <View><Text style={styles.eyebrow}>GOOD MORNING, TRAVELLER</Text><Text style={styles.title}>Plan your next escape</Text></View>
+          <Pressable style={styles.avatar} onPress={haptic}><Text style={styles.avatarText}>AR</Text></Pressable>
         </View>
+        <View style={styles.hero}><View style={styles.heroCopy}><Text style={styles.heroKicker}>TRAVEL MORE, WORRY LESS</Text><Text style={styles.heroTitle}>Every journey{`\n`}starts here.</Text><Text style={styles.heroMeta}>Book trains, buses and flights in one place.</Text></View><View style={styles.heroArt}><Ionicons name="navigate" size={28} color={C.coral} /><View style={styles.artLine} /><Ionicons name="airplane" size={24} color={C.white} /></View></View>
+
+        <View style={styles.sectionTop}><Text style={styles.sectionNumber}>01</Text><View><Text style={styles.sectionTitle}>Where to go?</Text><Text style={styles.sectionSub}>Choose your route</Text></View></View>
+        <View style={styles.routeCard}>
+          <View style={styles.routeRow}><View style={styles.dotColumn}><View style={[styles.routeDot, { backgroundColor: C.coral }]} /><View style={styles.connector} /><View style={[styles.routeDot, { backgroundColor: C.navy }]} /></View><View style={styles.routeFields}><Pressable style={styles.routeField} onPress={() => { setField("from"); setQuery(""); }}><Text style={styles.fieldLabel}>FROM</Text><Text style={styles.fieldValue}>{from}</Text><Text style={styles.fieldHint}>Departure city</Text></Pressable><View style={styles.fieldRule} /><Pressable style={styles.routeField} onPress={() => { setField("to"); setQuery(""); }}><Text style={styles.fieldLabel}>TO</Text><Text style={styles.fieldValue}>{to}</Text><Text style={styles.fieldHint}>Arrival city</Text></Pressable></View><Pressable style={styles.swap} onPress={swap}><Ionicons name="swap-vertical" size={18} color={C.coral} /></Pressable></View>
+          {field && <View style={styles.destinationPanel}><View style={styles.searchBox}><Ionicons name="search" size={18} color={C.muted} /><TextInput autoFocus value={query} onChangeText={setQuery} placeholder={`Search ${field === "from" ? "departure" : "arrival"} city`} placeholderTextColor="#A0AAB8" style={styles.searchInput} /></View>{filtered.map((d) => <Pressable key={d[1]} style={styles.destinationItem} onPress={() => selectDestination(d[0])}><View style={styles.cityIcon}><Ionicons name="location-outline" size={17} color={C.coral} /></View><View style={{ flex: 1 }}><Text style={styles.cityName}>{d[0]}</Text><Text style={styles.cityMeta}>{d[2]}</Text></View><Text style={styles.cityCode}>{d[1]}</Text></Pressable>)}</View>}
+        </View>
+
+        <View style={styles.sectionTop}><Text style={styles.sectionNumber}>02</Text><View><Text style={styles.sectionTitle}>How to go?</Text><Text style={styles.sectionSub}>Select a mode of transport</Text></View></View>
+        <View style={styles.modeRow}>{(["train", "bus", "air"] as Mode[]).map((item) => { const active = mode === item; const icon = item === "train" ? "train" : item === "bus" ? "bus" : "airplane"; const name = item === "train" ? "Train" : item === "bus" ? "Bus" : "Airplane"; const desc = item === "train" ? "Fast & scenic" : item === "bus" ? "Easy & flexible" : "Fly farther"; return <Pressable key={item} onPress={() => changeMode(item)} style={[styles.modeCard, active && styles.modeCardActive]}><View style={[styles.modeIcon, active && styles.modeIconActive]}><Ionicons name={icon as "train"} size={22} color={active ? C.white : C.navy} /></View><Text style={[styles.modeName, active && { color: C.white }]}>{name}</Text><Text style={[styles.modeDesc, active && { color: "#C7D6EA" }]}>{desc}</Text>{active && <View style={styles.check}><Ionicons name="checkmark" size={11} color={C.white} /></View>}</Pressable>; })}</View>
+
+        <View style={styles.optionsHeader}><View><Text style={styles.optionsTitle}>{modeLabel} details</Text><Text style={styles.optionsSub}>Personalise your journey</Text></View><View style={styles.modePill}><Text style={styles.modePillText}>{modeLabel.toUpperCase()}</Text></View></View>
+        <View style={styles.detailsCard}>
+          <Text style={styles.inputCaption}>{mode === "air" ? "DEPARTURE DATE" : "TRAVEL DATE"}</Text><View style={styles.dateRow}>{dates.map((item) => <Pressable key={item[1]} onPress={() => { setDate(item[1]); haptic(); }} style={[styles.dateChip, date === item[1] && styles.dateChipActive]}><Text style={[styles.dateDay, date === item[1] && { color: C.white }]}>{item[0]}</Text><Text style={[styles.dateValue, date === item[1] && { color: C.white }]}>{item[1]}</Text><Text style={[styles.dateWeek, date === item[1] && { color: "#FFD1C5" }]}>{item[2]}</Text></Pressable>)}</View>
+          <View style={styles.twoColumns}><View style={styles.column}><Text style={styles.inputCaption}>PASSENGERS</Text><View style={styles.counter}><Pressable onPress={() => setPassengers(Math.max(1, passengers - 1))} style={styles.counterButton}><Ionicons name="remove" size={16} color={C.navy} /></Pressable><Text style={styles.counterValue}>{passengers}</Text><Pressable onPress={() => setPassengers(Math.min(9, passengers + 1))} style={styles.counterButton}><Ionicons name="add" size={16} color={C.navy} /></Pressable></View></View>{mode === "air" ? <View style={styles.column}><Text style={styles.inputCaption}>TRIP TYPE</Text><View style={styles.segmented}>{["One Way", "Round Trip"].map((item) => <Pressable key={item} onPress={() => setTripType(item)} style={[styles.segment, tripType === item && styles.segmentActive]}><Text style={[styles.segmentText, tripType === item && { color: C.white }]}>{item === "One Way" ? "One way" : "Round"}</Text></Pressable>)}</View></View> : <View style={styles.column}><Text style={styles.inputCaption}>{mode === "train" ? "CLASS" : "SEAT PREF."}</Text><View style={styles.miniValue}><Text style={styles.miniValueText}>{mode === "train" ? trainClass : seatPref}</Text><Ionicons name="chevron-down" size={15} color={C.coral} /></View></View>}</View>
+
+          {mode === "train" && <View><Text style={styles.inputCaption}>SELECT CLASS</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>{trainClasses.map((item) => <Pressable key={item[0]} onPress={() => { setTrainClass(item[0]); haptic(); }} style={[styles.optionTile, trainClass === item[0] && styles.optionTileActive]}><Text style={[styles.optionCode, trainClass === item[0] && { color: C.coral }]}>{item[0]}</Text><Text style={[styles.optionName, trainClass === item[0] && { color: C.navy }]}>{item[1]}</Text><Text style={styles.optionPrice}>{item[3]}</Text></Pressable>)}</ScrollView></View>}
+          {mode === "bus" && <View><Text style={styles.inputCaption}>BUS TYPE</Text><View style={styles.wrap}>{busTypes.map((item) => <Pressable key={item} onPress={() => setBusType(item)} style={[styles.filterChip, busType === item && styles.filterChipActive]}><Text style={[styles.filterText, busType === item && { color: C.white }]}>{item}</Text></Pressable>)}</View><Text style={[styles.inputCaption, { marginTop: 18 }]}>SEAT PREFERENCE</Text><View style={styles.wrap}>{["Window", "Aisle"].map((item) => <Pressable key={item} onPress={() => setSeatPref(item)} style={[styles.filterChip, seatPref === item && styles.filterChipActive]}><Ionicons name={item === "Window" ? "square-outline" : "reorder-three-outline"} size={15} color={seatPref === item ? C.white : C.navy} /><Text style={[styles.filterText, seatPref === item && { color: C.white }]}>{item}</Text></Pressable>)}</View><Text style={[styles.inputCaption, { marginTop: 18 }]}>SELECT SEATS <Text style={styles.inlineHint}>({selectedSeats.length} selected)</Text></Text><View style={styles.seatGrid}>{seats.map((seat) => { const isOccupied = occupied.includes(seat); const selected = selectedSeats.includes(seat); return <Pressable key={seat} onPress={() => toggleSeat(seat)} style={[styles.seat, isOccupied && styles.seatOccupied, selected && styles.seatSelected]}><Text style={[styles.seatText, (isOccupied || selected) && { color: C.white }]}>{seat}</Text></Pressable>; })}</View><View style={styles.legend}><View style={[styles.legendDot, { backgroundColor: C.line }]} /><Text style={styles.legendText}>Available</Text><View style={[styles.legendDot, { backgroundColor: C.coral }]} /><Text style={styles.legendText}>Selected</Text><View style={[styles.legendDot, { backgroundColor: "#AEB8C4" }]} /><Text style={styles.legendText}>Occupied</Text></View></View>}
+          {mode === "air" && <View><Text style={styles.inputCaption}>TRAVEL CLASS</Text><View style={styles.airList}>{airClasses.map((item) => <Pressable key={item[0]} onPress={() => setAirClass(item[0])} style={[styles.airItem, airClass === item[0] && styles.airItemActive]}><View style={[styles.radio, airClass === item[0] && styles.radioActive]}>{airClass === item[0] && <View style={styles.radioInner} />}</View><Text style={[styles.airName, airClass === item[0] && { color: C.navy }]}>{item[1]}</Text><Text style={styles.airPrice}>{item[2]}</Text></Pressable>)}</View><View style={styles.baggage}><Ionicons name="briefcase-outline" size={18} color={C.green} /><Text style={styles.baggageText}><Text style={{ fontWeight: "800" }}>Baggage included</Text> · 7 kg cabin + 15 kg check-in</Text></View></View>}
+        </View>
+
+        <View style={styles.summary}><View><Text style={styles.summaryEyebrow}>YOUR JOURNEY</Text><Text style={styles.summaryRoute}>{from} <Text style={styles.summaryArrow}>→</Text> {to}</Text><Text style={styles.summaryMeta}>{date} · {passengers} {passengers === 1 ? "traveller" : "travellers"} · {detailLabel}</Text></View><View style={styles.summaryPrice}><Text style={styles.fromLabel}>FROM</Text><Text style={styles.price}>{fare}</Text></View></View>
+        {ready && <View style={styles.readyNote}><Ionicons name="checkmark-circle" size={19} color={C.green} /><Text style={styles.readyText}>Your trip details are ready to book.</Text></View>}
+        <Pressable onPress={() => { setReady(true); haptic(); }} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.88, transform: [{ scale: 0.985 }] }]}><Text style={styles.ctaText}>{ready ? "Continue to Booking" : `Search ${modeLabel}s`}</Text><Ionicons name="arrow-forward" size={19} color={C.white} /></Pressable>
+        <Text style={styles.footer}>Prices are indicative and may change at checkout.</Text>
       </ScrollView>
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: { paddingTop: 14, paddingBottom: 34 }, header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }, eyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.5, color: C.coral }, title: { color: C.navy, fontSize: 25, lineHeight: 31, fontWeight: "800", marginTop: 5 }, avatar: { width: 43, height: 43, borderRadius: 22, backgroundColor: C.navy, alignItems: "center", justifyContent: "center" }, avatarText: { color: C.white, fontWeight: "800", fontSize: 12 }, hero: { backgroundColor: C.navy, borderRadius: 24, padding: 20, flexDirection: "row", overflow: "hidden", minHeight: 148, marginBottom: 25 }, heroCopy: { flex: 1 }, heroKicker: { fontSize: 9, color: "#9CB5D2", fontWeight: "800", letterSpacing: 1.4 }, heroTitle: { color: C.white, fontSize: 25, lineHeight: 28, fontWeight: "800", marginTop: 10 }, heroMeta: { color: "#B8C8DA", fontSize: 11, marginTop: 9 }, heroArt: { width: 74, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-25deg" }] }, artLine: { width: 52, borderTopWidth: 1, borderStyle: "dashed", borderColor: C.coral, marginVertical: 14 }, sectionTop: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 11 }, sectionNumber: { color: C.coral, fontSize: 11, fontWeight: "900", letterSpacing: 1 }, sectionTitle: { color: C.navy, fontWeight: "800", fontSize: 18 }, sectionSub: { color: C.muted, fontSize: 11, marginTop: 2 }, routeCard: { backgroundColor: C.white, borderRadius: 19, padding: 16, borderWidth: 1, borderColor: C.line, marginBottom: 26 }, routeRow: { flexDirection: "row", alignItems: "stretch" }, dotColumn: { width: 18, alignItems: "center", paddingTop: 5 }, routeDot: { width: 9, height: 9, borderRadius: 5 }, connector: { flex: 1, borderLeftWidth: 1, borderStyle: "dashed", borderColor: "#B9C5D3", marginVertical: 2 }, routeFields: { flex: 1, marginLeft: 10 }, routeField: { paddingVertical: 1 }, fieldLabel: { color: C.muted, fontSize: 9, fontWeight: "800", letterSpacing: 1 }, fieldValue: { color: C.navy, fontSize: 17, fontWeight: "800", marginTop: 4 }, fieldHint: { color: "#A0AAB8", fontSize: 10, marginTop: 2 }, fieldRule: { borderTopWidth: 1, borderColor: C.line, marginVertical: 11 }, swap: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.soft, alignItems: "center", justifyContent: "center", marginTop: 21 }, destinationPanel: { borderTopWidth: 1, borderColor: C.line, marginTop: 14, paddingTop: 13 }, searchBox: { backgroundColor: C.pale, borderRadius: 11, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, height: 42, marginBottom: 6 }, searchInput: { flex: 1, marginLeft: 8, color: C.navy, fontSize: 13 }, destinationItem: { flexDirection: "row", alignItems: "center", paddingVertical: 10 }, cityIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.soft, alignItems: "center", justifyContent: "center", marginRight: 9 }, cityName: { color: C.navy, fontSize: 13, fontWeight: "800" }, cityMeta: { color: C.muted, fontSize: 10, marginTop: 2 }, cityCode: { color: C.muted, fontSize: 10, fontWeight: "800", letterSpacing: 1 }, modeRow: { flexDirection: "row", gap: 9, marginBottom: 26 }, modeCard: { flex: 1, minHeight: 114, backgroundColor: C.white, borderRadius: 17, padding: 11, borderWidth: 1, borderColor: C.line }, modeCardActive: { backgroundColor: C.navy, borderColor: C.navy }, modeIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#EEF3F8", alignItems: "center", justifyContent: "center", marginBottom: 10 }, modeIconActive: { backgroundColor: "#233C5B" }, modeName: { color: C.navy, fontWeight: "800", fontSize: 13 }, modeDesc: { color: C.muted, fontSize: 9, marginTop: 4 }, check: { position: "absolute", right: 9, top: 9, width: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: "center", justifyContent: "center" }, optionsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 11 }, optionsTitle: { color: C.navy, fontSize: 18, fontWeight: "800" }, optionsSub: { color: C.muted, fontSize: 11, marginTop: 2 }, modePill: { backgroundColor: C.soft, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6 }, modePillText: { color: C.coral, fontSize: 9, fontWeight: "900", letterSpacing: 1 }, detailsCard: { backgroundColor: C.white, borderRadius: 19, padding: 16, borderWidth: 1, borderColor: C.line }, inputCaption: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 1, marginBottom: 9 }, dateRow: { flexDirection: "row", gap: 7, marginBottom: 19 }, dateChip: { flex: 1, backgroundColor: C.pale, borderRadius: 11, alignItems: "center", paddingVertical: 9, borderWidth: 1, borderColor: C.pale }, dateChipActive: { backgroundColor: C.coral, borderColor: C.coral }, dateDay: { color: C.muted, fontSize: 9, fontWeight: "700" }, dateValue: { color: C.navy, fontSize: 13, fontWeight: "900", marginTop: 4 }, dateWeek: { color: "#A0AAB8", fontSize: 9, marginTop: 2 }, twoColumns: { flexDirection: "row", gap: 12, marginBottom: 20 }, column: { flex: 1 }, counter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.pale, borderRadius: 10, padding: 4, height: 38 }, counterButton: { width: 30, height: 30, borderRadius: 8, backgroundColor: C.white, alignItems: "center", justifyContent: "center" }, counterValue: { color: C.navy, fontWeight: "900", fontSize: 14 }, miniValue: { height: 38, backgroundColor: C.pale, borderRadius: 10, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, miniValueText: { color: C.navy, fontSize: 13, fontWeight: "800" }, segmented: { flexDirection: "row", backgroundColor: C.pale, borderRadius: 10, padding: 3, height: 38 }, segment: { flex: 1, borderRadius: 8, alignItems: "center", justifyContent: "center" }, segmentActive: { backgroundColor: C.navy }, segmentText: { color: C.muted, fontSize: 10, fontWeight: "800" }, horizontalList: { gap: 8, paddingBottom: 3 }, optionTile: { width: 106, padding: 11, borderRadius: 12, backgroundColor: C.pale, borderWidth: 1, borderColor: C.pale }, optionTileActive: { backgroundColor: C.soft, borderColor: C.coral }, optionCode: { color: C.muted, fontSize: 10, fontWeight: "900", letterSpacing: 1 }, optionName: { color: C.navy, fontSize: 11, fontWeight: "800", marginTop: 6 }, optionPrice: { color: C.coral, fontSize: 11, fontWeight: "900", marginTop: 10 }, wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, filterChip: { minHeight: 36, borderRadius: 10, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.pale, borderWidth: 1, borderColor: C.line }, filterChipActive: { backgroundColor: C.navy, borderColor: C.navy }, filterText: { color: C.navy, fontSize: 11, fontWeight: "800" }, inlineHint: { color: C.coral, fontWeight: "700", letterSpacing: 0 }, seatGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7, padding: 10, backgroundColor: C.pale, borderRadius: 13 }, seat: { width: 40, height: 32, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" }, seatOccupied: { backgroundColor: "#AEB8C4", borderColor: "#AEB8C4" }, seatSelected: { backgroundColor: C.coral, borderColor: C.coral }, seatText: { color: C.navy, fontSize: 10, fontWeight: "900" }, legend: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 10 }, legendDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8 }, legendText: { color: C.muted, fontSize: 9 }, airList: { gap: 8 }, airItem: { flexDirection: "row", alignItems: "center", padding: 11, borderRadius: 11, borderWidth: 1, borderColor: C.line, backgroundColor: C.pale }, airItemActive: { borderColor: C.coral, backgroundColor: C.soft }, radio: { width: 17, height: 17, borderRadius: 9, borderWidth: 1.5, borderColor: "#AEB8C4", alignItems: "center", justifyContent: "center", marginRight: 9 }, radioActive: { borderColor: C.coral }, radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: C.coral }, airName: { color: C.muted, fontWeight: "800", fontSize: 12, flex: 1 }, airPrice: { color: C.navy, fontWeight: "900", fontSize: 12 }, baggage: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#ECF9F4", borderRadius: 10, padding: 11, marginTop: 12 }, baggageText: { color: C.green, fontSize: 10, flex: 1 }, summary: { backgroundColor: C.navy, borderRadius: 19, padding: 17, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20 }, summaryEyebrow: { color: "#9CB5D2", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, summaryRoute: { color: C.white, fontSize: 16, fontWeight: "900", marginTop: 6 }, summaryArrow: { color: C.coral }, summaryMeta: { color: "#B8C8DA", fontSize: 10, marginTop: 5 }, summaryPrice: { alignItems: "flex-end" }, fromLabel: { color: "#9CB5D2", fontSize: 8, fontWeight: "800" }, price: { color: C.white, fontSize: 18, fontWeight: "900", marginTop: 4 }, readyNote: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 13, paddingHorizontal: 3 }, readyText: { color: C.green, fontSize: 11, fontWeight: "800" }, cta: { height: 54, borderRadius: 16, backgroundColor: C.coral, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10, marginTop: 13 }, ctaText: { color: C.white, fontSize: 15, fontWeight: "900" }, footer: { color: "#A0AAB8", fontSize: 10, textAlign: "center", marginTop: 13 },
+});
