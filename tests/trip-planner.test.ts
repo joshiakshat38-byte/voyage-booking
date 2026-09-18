@@ -10,19 +10,25 @@ describe("Plan My Trip", () => {
     expect(budget.travel).toBeGreaterThan(0);
     expect(budget.accommodation).toBeGreaterThan(0);
     expect(budget.food).toBeGreaterThan(0);
-    expect(budget.total).toBe(budget.travel + budget.accommodation + budget.food + budget.local + budget.activities + budget.emergency);
-    expect(budget.remaining).toBe(10000 - budget.total);
+    expect(budget.estimatedTotal).toBeGreaterThan(budget.total);
+    expect(budget.total).toBe(10000);
+    expect(budget.remaining).toBe(0);
+    expect(budget.isTight).toBe(true);
   });
 
-  it("generates exactly the requested number of days", () => {
+  it("generates exactly the requested number of days with named place records", () => {
     const itinerary = generateItinerary({ destination: delhi, budget: 25000, days: 5, travellers: 2 });
     expect(itinerary).toHaveLength(5);
-    expect(itinerary[0].places.length).toBe(3);
-    expect(itinerary.every((day) => day.note.includes("estimates"))).toBe(true);
+    expect(itinerary[0].stops.length).toBeGreaterThan(0);
+    expect(itinerary[0].stops[0].address).toContain("Delhi");
+    expect(itinerary.every((day) => day.note.includes("estimated"))).toBe(true);
   });
 
-  it("flags a low budget through a negative remaining amount instead of hiding the overage", () => {
+  it("flags a low budget without intentionally displaying a trip over the entered budget", () => {
     const budget = calculatePlanBudget({ destination: delhi, budget: 500, days: 7, travellers: 4 });
-    expect(budget.remaining).toBeLessThan(0);
+    expect(budget.estimatedTotal).toBeGreaterThan(500);
+    expect(budget.total).toBe(500);
+    expect(budget.remaining).toBe(0);
+    expect(budget.isTight).toBe(true);
   });
 });
